@@ -14,6 +14,11 @@ BASE = "https://prod-api.fomo.family/proxy/filterTokens"
 CDP = os.environ.get("CHROME_CDP", "http://localhost:9222")
 TTL = 50 * 60            # bearer lives ~60 min, refresh a little early
 BATCH = 20
+# FOMO rejects requests that do not look like they come from its own site
+BROWSER = {"Origin": "https://fomo.family", "Referer": "https://fomo.family/",
+           "Content-Type": "application/json",
+           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                         "(KHTML, like Gecko) Chrome/131.0 Safari/537.36"}
 
 
 def _bearer_from_chrome() -> str:
@@ -44,6 +49,9 @@ class Fomo:
         self._at = time.time()
         return self._tok
 
+    def _headers(self) -> dict:
+        return {**BROWSER, "Authorization": f"Bearer {self.token()}"}
+
     @staticmethod
     def _row(r: dict) -> dict:
         g = lambda *ks: next((r[k] for k in ks if r.get(k) is not None), None)
@@ -59,12 +67,10 @@ class Fomo:
         out = {}
         for i in range(0, len(ids), BATCH):
             chunk = ids[i:i + BATCH]
-            r = requests.post(BASE, json=chunk, timeout=30,
-                              headers={"Authorization": f"Bearer {self.token()}"})
-            if r.status_code == 401:                    # expired mid-cycle: refresh once
+            r = requests.post(BASE, json=chunk, timeout=30, headers=self._headers())
+            if r.status_code in (401, 430):             # expired mid-cycle: refresh once
                 self._tok = None
-                r = requests.post(BASE, json=chunk, timeout=30,
-                                  headers={"Authorization": f"Bearer {self.token()}"})
+                r = requests.post(BASE, json=chunk, timeout=30, headers=self._headers())
             r.raise_for_status()
             data = r.json()
             rows = data if isinstance(data, list) else data.get("tokens", data.get("data", []))
