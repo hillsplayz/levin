@@ -23,6 +23,8 @@ class Desk:
             f.write(json.dumps({"ts": time.time(), "order": order, "stats": stats}) + "\n")
 
     def report(self, order, stats):
+        with open("cycles.jsonl", "a") as f:
+            f.write(json.dumps({"ts": time.time(), "order": order, "stats": stats}) + "\n")
         if order:
             line = (f"ORDER {order['token']['ticker']} ({order['token']['chain']}) "
                     f"size x{order['size_factor']} conf {order['confidence']} "

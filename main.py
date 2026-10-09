@@ -89,7 +89,8 @@ def run_once(fomo, judge, desk, bank, shadow=True):
         d, ans = survivors[0]
         order = {"model": "single-survivor", "size_factor": 1.0, "confidence": None,
                  "token": {"ticker": d["ticker"], "address": d["addr"],
-                           "network_id": d["net"], "chain": d["chain"]},
+                           "network_id": d["net"], "chain": d["chain"],
+                           "price_usd": d.get("price_usd")},
                  "why": ans}
     else:
         order = pick(judge, survivors)           # pass five

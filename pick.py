@@ -51,7 +51,8 @@ def pick(judge, survivors) -> dict | None:
 
     return {"model": r["model"],
             "token": {"ticker": d["ticker"], "address": d["addr"],
-                      "network_id": d["net"], "chain": d["chain"]},
+                      "network_id": d["net"], "chain": d["chain"],
+                      "price_usd": d.get("price_usd")},
             "size_factor": round(size_factor, 2),
             "confidence": best["confidence"],
             "runner_up": sorted(best["probabilities"].items(),
