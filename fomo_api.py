@@ -21,16 +21,29 @@ BROWSER = {"Origin": "https://fomo.family", "Referer": "https://fomo.family/",
                          "(KHTML, like Gecko) Chrome/131.0 Safari/537.36"}
 
 
-def _bearer_from_chrome() -> str:
+def _cdp(ws, msg_id, method, params=None):
+    """Send one CDP command and wait for its reply (events in between are skipped)."""
+    ws.send(json.dumps({"id": msg_id, "method": method, "params": params or {}}))
+    while True:
+        m = json.loads(ws.recv())
+        if m.get("id") == msg_id:
+            return m
+
+
+def _bearer_from_chrome(reload: bool = False) -> str:
+    """Read the Privy token out of the fomo.family tab. reload=True reloads the tab
+    first, which makes the site mint a fresh token (an idle tab lets it expire)."""
     import websocket                                    # websocket-client
     tabs = requests.get(f"{CDP}/json", timeout=10).json()
     tab = next(t for t in tabs if "fomo.family" in t.get("url", ""))
-    ws = websocket.create_connection(tab["webSocketDebuggerUrl"], timeout=10)
+    ws = websocket.create_connection(tab["webSocketDebuggerUrl"], timeout=15)
     try:
-        ws.send(json.dumps({"id": 1, "method": "Runtime.evaluate", "params": {
-            "expression": "localStorage.getItem('privy:token')",
-            "returnByValue": True}}))
-        val = json.loads(ws.recv())["result"]["result"].get("value")
+        if reload:
+            _cdp(ws, 1, "Page.reload")
+            time.sleep(8)
+        m = _cdp(ws, 2, "Runtime.evaluate", {
+            "expression": "localStorage.getItem('privy:token')", "returnByValue": True})
+        val = m["result"]["result"].get("value")
     finally:
         ws.close()
     if not val:
@@ -38,22 +51,7 @@ def _bearer_from_chrome() -> str:
     return val.strip('"')
 
 
-class Fomo:
-    def __init__(self):
-        self._tok, self._at = None, 0.0
-
-    def token(self) -> str:
-        if self._tok and time.time() - self._at < TTL:
-            return self._tok
-        self._tok = os.environ.get("FOMO_BEARER") or _bearer_from_chrome()
-        self._at = time.time()
-        return self._tok
-
-    def _headers(self) -> dict:
-        return {**BROWSER, "Authorization": f"Bearer {self.token()}"}
-
-    @staticmethod
-    def _num(v):
+def _num(v):
         """FOMO sends many numbers as strings. None stays None."""
         try:
             return None if v in (None, "") else float(v)
@@ -79,9 +77,9 @@ class Fomo:
         for i in range(0, len(ids), BATCH):
             chunk = ids[i:i + BATCH]
             r = requests.post(BASE, json=chunk, timeout=30, headers=self._headers())
-            if r.status_code in (401, 430):             # expired mid-cycle: refresh once
-                self._tok = None
-                r = requests.post(BASE, json=chunk, timeout=30, headers=self._headers())
+            if r.status_code in (401, 430):             # expired: reload the tab, retry once
+                r = requests.post(BASE, json=chunk, timeout=30,
+                                  headers=self._headers(fresh=True))
             r.raise_for_status()
             data = r.json()
             if isinstance(data, dict):
