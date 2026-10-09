@@ -4,9 +4,6 @@ Bearer source, in order:
   1. FOMO_BEARER env var (manual override / testing)
   2. the Privy token in Chrome's localStorage, read over CDP
      (start Chrome with --remote-debugging-port=9222, logged into fomo.family)
-
-The response shape of filterTokens is mapped defensively in `_row`; if FOMO renames a
-field, this is the only place to fix.
 """
 import json, os, time, requests
 
@@ -52,23 +49,38 @@ def _bearer_from_chrome(reload: bool = False) -> str:
 
 
 def _num(v):
-        """FOMO sends many numbers as strings. None stays None."""
-        try:
-            return None if v in (None, "") else float(v)
-        except (TypeError, ValueError):
-            return None
+    """FOMO sends many numbers as strings. None stays None."""
+    try:
+        return None if v in (None, "") else float(v)
+    except (TypeError, ValueError):
+        return None
 
-    @classmethod
-    def _row(cls, r: dict) -> dict:
-        tok, n = r.get("token") or {}, cls._num
-        holders = n(r.get("holders"))
-        return {"symbol": tok.get("symbol") or "?",
-                "mcap": n(r.get("marketCap")) or 0, "liq": n(r.get("liquidity")) or 0,
-                "vol24": n(r.get("volume24")) or 0, "price": n(r.get("priceUSD")) or 0,
-                "holders": int(holders) if holders else None,
-                "created": r.get("createdAt") or tok.get("createdAt"),
-                "change": {300: n(r.get("change5m")), 3600: n(r.get("change1")),
-                           14400: n(r.get("change4")), 86400: n(r.get("change24"))}}
+
+def _row(r: dict) -> dict:
+    tok, n = r.get("token") or {}, _num
+    holders = n(r.get("holders"))
+    return {"symbol": tok.get("symbol") or "?",
+            "mcap": n(r.get("marketCap")) or 0, "liq": n(r.get("liquidity")) or 0,
+            "vol24": n(r.get("volume24")) or 0, "price": n(r.get("priceUSD")) or 0,
+            "holders": int(holders) if holders else None,
+            "created": r.get("createdAt") or tok.get("createdAt"),
+            "change": {300: n(r.get("change5m")), 3600: n(r.get("change1")),
+                       14400: n(r.get("change4")), 86400: n(r.get("change24"))}}
+
+
+class Fomo:
+    def __init__(self):
+        self._tok, self._at = None, 0.0
+
+    def token(self, fresh: bool = False) -> str:
+        if self._tok and not fresh and time.time() - self._at < TTL:
+            return self._tok
+        self._tok = os.environ.get("FOMO_BEARER") or _bearer_from_chrome(reload=fresh)
+        self._at = time.time()
+        return self._tok
+
+    def _headers(self, fresh: bool = False) -> dict:
+        return {**BROWSER, "Authorization": f"Bearer {self.token(fresh)}"}
 
     def tokens(self, ids: list[str]) -> dict[str, dict]:
         """20 per call -> {'<addr>:<netId>': row}. Rows are matched to the requested
@@ -91,5 +103,5 @@ def _num(v):
                 tok = (row or {}).get("token") or {}
                 key = f"{tok.get('address', '')}:{tok.get('networkId', '')}".lower()
                 if key in wanted:
-                    out[wanted[key]] = self._row(row)
+                    out[wanted[key]] = _row(row)
         return out
