@@ -53,17 +53,28 @@ class Fomo:
         return {**BROWSER, "Authorization": f"Bearer {self.token()}"}
 
     @staticmethod
-    def _row(r: dict) -> dict:
-        g = lambda *ks: next((r[k] for k in ks if r.get(k) is not None), None)
-        return {"symbol": g("symbol", "ticker") or "?",
-                "mcap": g("marketCap") or 0, "liq": g("liquidity") or 0,
-                "vol24": g("volume24") or 0, "price": g("priceUSD") or 0,
-                "holders": g("holders"), "created": g("createdAt"),
-                "change": {300: g("change5m"), 3600: g("change1"),
-                           14400: g("change4"), 86400: g("change24")}}
+    def _num(v):
+        """FOMO sends many numbers as strings. None stays None."""
+        try:
+            return None if v in (None, "") else float(v)
+        except (TypeError, ValueError):
+            return None
+
+    @classmethod
+    def _row(cls, r: dict) -> dict:
+        tok, n = r.get("token") or {}, cls._num
+        holders = n(r.get("holders"))
+        return {"symbol": tok.get("symbol") or "?",
+                "mcap": n(r.get("marketCap")) or 0, "liq": n(r.get("liquidity")) or 0,
+                "vol24": n(r.get("volume24")) or 0, "price": n(r.get("priceUSD")) or 0,
+                "holders": int(holders) if holders else None,
+                "created": r.get("createdAt") or tok.get("createdAt"),
+                "change": {300: n(r.get("change5m")), 3600: n(r.get("change1")),
+                           14400: n(r.get("change4")), 86400: n(r.get("change24"))}}
 
     def tokens(self, ids: list[str]) -> dict[str, dict]:
-        """20 per call -> {'<addr>:<netId>': row}"""
+        """20 per call -> {'<addr>:<netId>': row}. Rows are matched to the requested
+        ids by token address + networkId, not by position: FOMO may drop or reorder."""
         out = {}
         for i in range(0, len(ids), BATCH):
             chunk = ids[i:i + BATCH]
@@ -73,8 +84,14 @@ class Fomo:
                 r = requests.post(BASE, json=chunk, timeout=30, headers=self._headers())
             r.raise_for_status()
             data = r.json()
-            rows = data if isinstance(data, list) else data.get("tokens", data.get("data", []))
-            for tid, row in zip(chunk, rows):           # same order as the request
-                if row:
-                    out[tid] = self._row(row)
+            if isinstance(data, dict):
+                if data.get("success") is False:
+                    raise RuntimeError(f"FOMO filterTokens: {data.get('message')}")
+                data = data.get("responseObject") or []
+            wanted = {tid.lower(): tid for tid in chunk}
+            for row in data:
+                tok = (row or {}).get("token") or {}
+                key = f"{tok.get('address', '')}:{tok.get('networkId', '')}".lower()
+                if key in wanted:
+                    out[wanted[key]] = self._row(row)
         return out
