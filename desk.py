@@ -20,7 +20,11 @@ class Desk:
 
     def read_x(self, handle):
         """SOCIAL collects this with Grok's X plugin. None = no social read (a gap,
-        not a pass): the pick shrinks the ticket by NO_SOCIAL_CUT."""
+        not a pass): the pick shrinks the ticket by NO_SOCIAL_CUT.
+        Uses X's official API when X_BEARER_TOKEN is set (see xapi.py)."""
+        if os.environ.get("X_BEARER_TOKEN"):
+            import xapi
+            return xapi.read_x(handle)
         return None
 
     def log_shadow(self, order, stats):

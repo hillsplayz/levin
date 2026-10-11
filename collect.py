@@ -134,4 +134,6 @@ def sol_top_wallet(mint: str):
 def social_state(d: dict) -> dict:
     """What SOCIAL hands the judge. The X block is filled by the bot's X plugin."""
     return {"x_account": d["x_account"],                 # collected by SOCIAL, not here
-            "token": {"ticker": d["ticker"], "narrative": d.get("description")}}
+            "token": {"ticker": d["ticker"], "narrative": d.get("description"),
+                      # recycled_account compares the account's timeline with the token's
+                      "age_minutes": d.get("age_minutes"), "chain": d.get("chain")}}
