@@ -35,6 +35,7 @@ python -m uvicorn dashboard:app --port 8090   # http://127.0.0.1:8090
 | `paper.py` | SIZE / FILLS / RISK as code with simulated fills (DexScreener prices) |
 | `dashboard.py`, `dashboard.html` | local dashboard: funnel, shadow picks, paper trades and PnL |
 | `xapi.py` | reads an X account via the official X API (set X_BEARER_TOKEN) |
+| `tgbot.py` | Telegram commands (/status /pnl /trades), read-only, answers only your chat |
 | `desk.py` | Grok Bot side: bank, X read, shadow log, Telegram, seat handoff (stubs to wire up) |
 | `prompts/` | handoff, SOCIAL, SIZE/FILLS/RISK seat prompts |
 
