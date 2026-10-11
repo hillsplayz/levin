@@ -11,6 +11,16 @@ HARD = {                        # stage 2, arithmetic, runs before anything cost
     "min_holders":       80,
 }
 
+HARD_BLUEPRINT = dict(HARD)     # the guide's exact numbers, kept for comparison
+
+# A looser set for paper testing only. Switch on with DESK_PROFILE=explore (desk.env).
+# Everything below the free cut is unchanged. Remove the variable to go back.
+EXPLORE = {"min_age_minutes": 10, "min_liquidity_usd": 6_000, "min_volume_h24": 15_000,
+           "min_mcap_usd": 30_000, "min_trades_h24": 60, "min_holders": 40}
+import os as _os
+if _os.environ.get("DESK_PROFILE") == "explore":
+    HARD.update(EXPLORE)
+
 SOFT = {                        # applied to Jev's answers, per token
     "concentration_is_exit_risk": ("max", 0.55),
     "momentum_already_spent":     ("max", 0.60),

@@ -36,6 +36,7 @@ python -m uvicorn dashboard:app --port 8090   # http://127.0.0.1:8090
 | `dashboard.py`, `dashboard.html` | local dashboard: funnel, shadow picks, paper trades and PnL |
 | `xapi.py` | reads an X account via the official X API (set X_BEARER_TOKEN) |
 | `tgbot.py` | Telegram commands (/status /pnl /trades), read-only, answers only your chat |
+| `tokenlog.py`, `whatif.py` | log every judged token; `python whatif.py` shows what looser filters would let through |
 | `desk.py` | Grok Bot side: bank, X read, shadow log, Telegram, seat handoff (stubs to wire up) |
 | `prompts/` | handoff, SOCIAL, SIZE/FILLS/RISK seat prompts |
 

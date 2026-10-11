@@ -4,7 +4,7 @@ from collect import universe, shortlist, trade_counts, dossier, social_state
 from filter import free_kill, trade_kill, chain_kill, soft_kill
 from thresholds import HARD, RISK_POLL_SECONDS
 from pick import pick
-import book
+import book, tokenlog
 
 CHAIN_SET     = {1399811149: "solana", 56: "bsc", 8453: "bsc", 4663: "robinhood"}
 CYCLE_SECONDS = 900
@@ -48,6 +48,7 @@ def run_once(fomo, judge, desk, bank, shadow=True):
                 book.unwatch(t["tid"])
                 book.sit(t["tid"], k)
             stats["free"][k] = stats["free"].get(k, 0) + 1
+            tokenlog.log(t, k)
             continue
         book.unwatch(t["tid"])
 
@@ -59,6 +60,7 @@ def run_once(fomo, judge, desk, bank, shadow=True):
         if (k := trade_kill(t)):
             book.sit(t["tid"], k)
             stats["trade"][k] = stats["trade"].get(k, 0) + 1
+            tokenlog.log(t, k)
             continue
 
         try:
@@ -73,6 +75,7 @@ def run_once(fomo, judge, desk, bank, shadow=True):
         if (k := chain_kill(d)):
             book.sit(t["tid"], k)                # facts bench longest
             stats["chain"][k] = stats["chain"].get(k, 0) + 1
+            tokenlog.log(d, k)
             continue
 
         d["intended_ticket_usd"] = bank * 0.06   # the most SIZE could ever allow
@@ -91,8 +94,10 @@ def run_once(fomo, judge, desk, bank, shadow=True):
         if (k := soft_kill(ans)):
             book.sit(t["tid"], k)
             stats["soft"][k] = stats["soft"].get(k, 0) + 1
+            tokenlog.log(d, k)
             continue
 
+        tokenlog.log(d, "survivor")
         survivors.append((d, ans))
 
     log.info("cycle: %(seen)s seen, %(benched)s benched, free %(free)s, "
