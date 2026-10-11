@@ -2,6 +2,7 @@ import time, logging
 from fomo_api import Fomo
 from collect import universe, shortlist, trade_counts, dossier, social_state
 from filter import free_kill, trade_kill, chain_kill, soft_kill
+from thresholds import HARD, RISK_POLL_SECONDS
 from pick import pick
 import book
 
@@ -26,15 +27,29 @@ def run_once(fomo, judge, desk, bank, shadow=True):
     gt_slots, dex_slots = GT_DOSSIER, DEX_BUDGET
 
     ids = universe()                             # fresh pools, 3 chains, GT_UNIVERSE slots
-    for t in shortlist(fomo, ids):               # pass one: free, no per-token requests
+    due = book.due()                             # young tokens whose time has come
+    ids += [i for i in due if i not in ids]      # same FOMO batch, no extra requests
+    listed = shortlist(fomo, ids)
+    got = {t["tid"] for t in listed}
+    for tid in due:
+        if tid not in got:
+            book.unwatch(tid)                    # FOMO does not know it, stop asking
+    stats["rechecked"] = len(got & set(due))
+    for t in listed:                             # pass one: free, no per-token requests
         stats["seen"] += 1
         if book.benched(t["tid"]):               # already judged, still serving its time
             stats["benched"] += 1
             continue
         if (k := free_kill(t)):
-            book.sit(t["tid"], k)
+            if k == "age" and t["age_minutes"] < HARD["min_age_minutes"]:
+                k = "age_young"                  # not bad, just early: look again later
+                book.watch(t["tid"], HARD["min_age_minutes"] - t["age_minutes"] + 1)
+            else:
+                book.unwatch(t["tid"])
+                book.sit(t["tid"], k)
             stats["free"][k] = stats["free"].get(k, 0) + 1
             continue
+        book.unwatch(t["tid"])
 
         if dex_slots <= 0 or gt_slots <= 0:
             break                                # out of budget, not out of ideas
@@ -101,25 +116,36 @@ def run_once(fomo, judge, desk, bank, shadow=True):
         desk.log_shadow(order, stats)            # written, never sent
         return None, stats
 
-    book.take(order)          # the desk is now held. No scan until RISK calls release().
-    return order, stats
+    return order, stats       # the executor takes the book once SIZE and FILLS say yes
 
 
-def main(fomo, judge, desk, shadow=True):
+def main(fomo, judge, desk, shadow=True, risk=None):
     """desk is your Grok Bot side. It has to provide five things:
          bank()                 -> float, free cash right now
          read_x(handle)         -> the X block SOCIAL collects with its plugin, or None
          log_shadow(order, st)  -> append a row for the shadow week
          report(order, stats)   -> one line to Telegram, trade or no trade
          send_to_seats(order)   -> hand it to SIZE, then FILLS, then RISK, in that order
+       risk is optional: a function called every RISK_POLL_SECONDS while a position is open.
     """
+    next_cycle = 0.0
     while True:
-        try:
-            fomo.token()                         # Privy bearer lives ~60 min, refresh it
-            order, stats = run_once(fomo, judge, desk, desk.bank(), shadow)
-            desk.report(order, stats)            # every cycle, trade or not
-            if order:
-                desk.send_to_seats(order)
-        except Exception as e:
-            log.exception("cycle blew up: %s", e)
-        time.sleep(CYCLE_SECONDS)
+        now = time.time()
+        if now >= next_cycle:
+            next_cycle = now + CYCLE_SECONDS
+            try:
+                fomo.token()                     # Privy bearer lives ~60 min, refresh it
+                order, stats = run_once(fomo, judge, desk, desk.bank(), shadow)
+                desk.report(order, stats)        # every cycle, trade or not
+                if order:
+                    desk.send_to_seats(order)
+            except Exception as e:
+                log.exception("cycle blew up: %s", e)
+        if risk:
+            try:
+                res = risk()
+                if res:
+                    log.info("risk: %s", res)
+            except Exception as e:
+                log.exception("risk tick blew up: %s", e)
+        time.sleep(max(1, min(RISK_POLL_SECONDS, next_cycle - time.time())))

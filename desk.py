@@ -10,7 +10,12 @@ log = logging.getLogger("desk")
 
 
 class Desk:
+    def __init__(self, paper=None):
+        self.paper = paper                       # the paper module, or None
+
     def bank(self) -> float:
+        if self.paper:
+            return self.paper.free_cash()        # start bank + realised PnL - locked
         return float(os.environ.get("DESK_BANK_USD", "0"))
 
     def read_x(self, handle):
@@ -32,12 +37,24 @@ class Desk:
         else:
             line = f"NO TRADE {json.dumps(stats)}"
         log.info(line)
+        self._telegram(line)
+
+    @staticmethod
+    def _telegram(text):
         tok, chat = os.environ.get("TELEGRAM_TOKEN"), os.environ.get("TELEGRAM_CHAT")
         if tok and chat:
-            requests.post(f"https://api.telegram.org/bot{tok}/sendMessage",
-                          json={"chat_id": chat, "text": line}, timeout=15)
+            try:
+                requests.post(f"https://api.telegram.org/bot{tok}/sendMessage",
+                              json={"chat_id": chat, "text": text}, timeout=15)
+            except Exception as e:
+                log.warning("telegram failed: %s", e)
 
     def send_to_seats(self, order):
+        if self.paper:
+            res = self.paper.open_position(order, self.bank())
+            log.info("PAPER %s %s: %s", order["token"]["ticker"], res["status"], res)
+            self._telegram(f"PAPER {order['token']['ticker']}: {json.dumps(res)}")
+            return res
         url = os.environ.get("SEATS_WEBHOOK")
         if url:
             requests.post(url, json={"order_id": time.strftime("%Y-%m-%dT%H:%M:%SZ",

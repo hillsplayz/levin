@@ -1,12 +1,15 @@
-import sqlite3, time
+import os, sqlite3, time
+from thresholds import MAX_WATCH_TRIES
 
-DB = sqlite3.connect("desk.db", check_same_thread=False)
+DB = sqlite3.connect(os.environ.get("DESK_DB", "desk.db"), check_same_thread=False)
 DB.executescript("""
 CREATE TABLE IF NOT EXISTS position(
   id INTEGER PRIMARY KEY CHECK (id = 1),
   ticker TEXT, addr TEXT, net INT, opened_at REAL);
 CREATE TABLE IF NOT EXISTS bench(
   tid TEXT PRIMARY KEY, reason TEXT, until REAL);
+CREATE TABLE IF NOT EXISTS watch(
+  tid TEXT PRIMARY KEY, ready_at REAL, tries INT);
 """)
 
 # how long a rejection stands, by what fired it
@@ -54,4 +57,34 @@ def sit(tid: str, reason: str):
     mins = BENCH_MINUTES.get(reason, DEFAULT_BENCH)
     DB.execute("INSERT OR REPLACE INTO bench VALUES (?,?,?)",
                (tid, reason, time.time() + mins * 60))
+    DB.commit()
+
+
+def watch(tid: str, minutes: float):
+    """A token rejected for being too YOUNG is not a bad token, it is an early one.
+    Re-check it when it should be old enough. Re-sightings while it is still waiting
+    do not count as tries; after MAX_WATCH_TRIES real re-checks it goes on the bench."""
+    r = DB.execute("SELECT ready_at, tries FROM watch WHERE tid=?", (tid,)).fetchone()
+    if r and r[0] > time.time():
+        return
+    tries = (r[1] if r else 0) + 1
+    if tries > MAX_WATCH_TRIES:
+        DB.execute("DELETE FROM watch WHERE tid=?", (tid,))
+        DB.commit()
+        sit(tid, "age")
+        return
+    DB.execute("INSERT OR REPLACE INTO watch VALUES (?,?,?)",
+               (tid, time.time() + max(minutes, 1) * 60, tries))
+    DB.commit()
+
+
+def due(limit: int = 100) -> list[str]:
+    """Watched tokens whose time has come. They go into this cycle's FOMO batch."""
+    rows = DB.execute("SELECT tid FROM watch WHERE ready_at <= ? ORDER BY ready_at LIMIT ?",
+                      (time.time(), limit)).fetchall()
+    return [r[0] for r in rows]
+
+
+def unwatch(tid: str):
+    DB.execute("DELETE FROM watch WHERE tid=?", (tid,))
     DB.commit()

@@ -17,8 +17,10 @@ cloudflared tunnel --url http://localhost:8080
 export JUDGE_URL="https://<tunnel>/judge" DESK_SECRET=...
 # Chrome logged into fomo.family with --remote-debugging-port=9222 (or set FOMO_BEARER)
 export DESK_BANK_USD=1000
-python run.py            # shadow mode: logs would-be orders to shadow.jsonl
-python run.py --live     # only after a week of shadow
+python run.py            # shadow: logs would-be orders to shadow.jsonl, buys nothing
+python run.py --paper    # paper trading: simulated fills, RISK exit, paper PnL
+python -m uvicorn dashboard:app --port 8090   # http://127.0.0.1:8090
+# --live is NOT implemented: no code here places real orders
 ```
 
 | File | Role |
@@ -29,6 +31,8 @@ python run.py --live     # only after a week of shadow
 | `thresholds.py` / `filter.py` | every number / the order they fire in |
 | `collect.py`, `fomo_api.py` | data fetching |
 | `pick.py`, `book.py`, `main.py` | choice, state (position + bench), the cycle |
+| `paper.py` | SIZE / FILLS / RISK as code with simulated fills (DexScreener prices) |
+| `dashboard.py`, `dashboard.html` | local dashboard: funnel, shadow picks, paper trades and PnL |
 | `desk.py` | Grok Bot side: bank, X read, shadow log, Telegram, seat handoff (stubs to wire up) |
 | `prompts/` | handoff, SOCIAL, SIZE/FILLS/RISK seat prompts |
 

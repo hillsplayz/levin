@@ -6,6 +6,15 @@ from main import main
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
 
+USAGE = """python run.py             shadow: log would-be trades only (default)
+python run.py --paper     paper trading: simulated fills, RISK exit, paper PnL
+python run.py --live      NOT BUILT: real orders are not implemented"""
+
 if __name__ == "__main__":
-    live = "--live" in sys.argv          # shadow unless you say otherwise. Leave it a week.
-    main(Fomo(), judge, Desk(), shadow=not live)
+    if "--live" in sys.argv:
+        sys.exit("--live is not implemented. No code here places real orders.\n" + USAGE)
+    if "--paper" in sys.argv:
+        import paper
+        main(Fomo(), judge, Desk(paper), shadow=False, risk=paper.risk_tick)
+    else:
+        main(Fomo(), judge, Desk(), shadow=True)

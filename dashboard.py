@@ -84,6 +84,24 @@ def state():
                        "model": o.get("model")})
     pnls = [o["pnl_pct"] for o in orders if o["pnl_pct"] is not None]
 
+    cols = ("id ticker chain opened_at entry qty ticket fee slip flags mark ratio closed_at "
+            "exit exit_fee pnl_usd pnl_pct reason").split()
+    trades = [dict(zip(cols, r)) for r in _db(
+        "SELECT id,ticker,chain,opened_at,entry_price,qty,ticket_usd,entry_fee,slippage_bps,"
+        "flags,mark_price,vol_ratio,closed_at,exit_price,exit_fee,pnl_usd,pnl_pct,reason "
+        "FROM paper_trades ORDER BY id DESC LIMIT 100")]
+    closed = [t for t in trades if t["closed_at"]]
+    for t in trades:
+        if not t["closed_at"] and t["mark"]:              # marked, ignoring exit costs
+            t["pnl_usd"] = t["qty"] * t["mark"] - t["ticket"]
+            t["pnl_pct"] = t["pnl_usd"] / t["ticket"] * 100
+    pt = {"trades": trades,
+          "n_closed": len(closed),
+          "realised": sum(t["pnl_usd"] for t in closed),
+          "open_pnl": sum(t["pnl_usd"] or 0 for t in trades if not t["closed_at"]),
+          "wins": sum(1 for t in closed if t["pnl_usd"] > 0),
+          "fees": sum((t["fee"] or 0) + (t["exit_fee"] or 0) for t in trades)}
+
     pos = _db("SELECT ticker, opened_at FROM position WHERE id=1")
     bench = _db("SELECT reason, COUNT(*) FROM bench WHERE until > strftime('%s','now') GROUP BY reason")
     return {
@@ -92,7 +110,7 @@ def state():
         "seen": seen, "benched": benched, "held_cycles": held, "funnel": funnel,
         "position": {"ticker": pos[0][0], "since": pos[0][1]} if pos else None,
         "bench": {r[0]: r[1] for r in bench},
-        "orders": orders[::-1],
+        "orders": orders[::-1], "ptrades": pt,
         "paper": {"n": len(orders), "priced": len(pnls),
                   "avg_pct": sum(pnls) / len(pnls) if pnls else None,
                   "wins": sum(1 for p in pnls if p > 0)},

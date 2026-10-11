@@ -23,6 +23,10 @@ th{color:var(--mut);font-weight:500}.scroll{overflow-x:auto}
 <div class="grid" id="cards"></div>
 <div class="row"><div class="card"><h2>Where tokens die (all cycles)</h2><div id="funnel"></div></div>
 <div class="card"><h2>Benched right now</h2><div id="bench"></div></div></div>
+<div class="card" style="margin-bottom:12px"><h2>Paper trades (simulated fills, fees and slippage included)</h2>
+<div class="grid" id="pcards" style="margin-bottom:10px"></div>
+<div class="scroll"><table><thead><tr><th>Opened</th><th>Token</th><th>Ticket</th><th>Entry</th><th>Exit / mark</th><th>PnL</th><th>Vol ratio</th><th>Status</th></tr></thead><tbody id="ptrades"></tbody></table></div>
+<div class="mut" style="margin-top:8px;font-size:12px">Open trades are marked to the latest price and ignore exit costs. Fills are simulated from DexScreener data, not real orders.</div></div>
 <div class="card" style="margin-bottom:12px"><h2>Would-be trades (shadow) · paper PnL</h2>
 <div class="scroll"><table><thead><tr><th>Time</th><th>Token</th><th>Chain</th><th>Entry</th><th>Now</th><th>Paper PnL</th><th>Conf.</th><th>Size×</th></tr></thead><tbody id="orders"></tbody></table></div>
 <div class="mut" style="margin-top:8px;font-size:12px">Paper PnL ignores fees, slippage and the RISK exit rule. It is a rough direction, not money.</div></div>
@@ -45,6 +49,10 @@ async function load(){let d;try{d=await (await fetch('/api/state')).json()}catch
   ['Paper win rate',p.priced?Math.round(p.wins/p.priced*100)+'%':'n/a'],
   ['Open position',d.position?d.position.ticker:'none']
  ].map(([l,v])=>`<div class="card"><div class="lab">${l}</div><div class="big">${v}</div></div>`).join('');
+ const q=d.ptrades,usd=v=>v==null?'n/a':`<span class="${v>=0?'ok':'bad'}">${v>=0?'+':'-'}$${Math.abs(v).toFixed(2)}</span>`;
+ $('pcards').innerHTML=[['Realised PnL',usd(q.realised)],['Open PnL',usd(q.open_pnl)],['Closed trades',q.n_closed],['Win rate',q.n_closed?Math.round(q.wins/q.n_closed*100)+'%':'n/a'],['Fees paid','$'+q.fees.toFixed(2)]]
+  .map(([l,v])=>`<div class="card"><div class="lab">${l}</div><div class="big">${v}</div></div>`).join('');
+ $('ptrades').innerHTML=q.trades.length?q.trades.map(x=>`<tr><td>${t(x.opened_at)}</td><td><b>${x.ticker}</b> <span class="mut">${x.chain}</span></td><td>$${x.ticket.toFixed(2)}</td><td>${px(x.entry)}</td><td>${px(x.closed_at?x.exit:x.mark)}</td><td>${usd(x.pnl_usd)} ${pct(x.pnl_pct)}</td><td>${x.ratio==null?'—':x.ratio.toFixed(2)}</td><td>${x.closed_at?'<span class="pill">closed: '+x.reason+'</span>':'<span class="pill ok">open</span>'}${(x.flags&&x.flags!='[]')?' <span class="pill bad">'+x.flags.replace(/[\[\]"]/g,'')+'</span>':''}</td></tr>`).join(''):'<tr><td colspan="8" class="mut">No paper trades yet. Start the desk with: python run.py --paper</td></tr>';
  bars('funnel',f);bars('bench',d.bench);
  $('orders').innerHTML=d.orders.length?d.orders.map(o=>`<tr><td>${t(o.ts)}</td><td><b>${o.ticker}</b></td><td>${o.chain}</td><td>${px(o.entry)}</td><td>${px(o.now)}</td><td>${pct(o.pnl_pct)}</td><td>${o.confidence==null?'—':o.confidence.toFixed(2)}</td><td>${o.size_factor}</td></tr>`).join(''):'<tr><td colspan="8" class="mut">No would-be trades yet. Normal early on: the filter rejects almost everything.</td></tr>';
  $('cycles').innerHTML=d.recent.map(c=>{const s=c.stats||{};const rej=sum(s.free)+sum(s.trade)+sum(s.chain)+sum(s.soft);
