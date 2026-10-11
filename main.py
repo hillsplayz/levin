@@ -141,11 +141,15 @@ def main(fomo, judge, desk, shadow=True, risk=None):
                     desk.send_to_seats(order)
             except Exception as e:
                 log.exception("cycle blew up: %s", e)
+                desk.notify(f"Desk cycle error: {type(e).__name__}: {str(e)[:200]}")
         if risk:
             try:
                 res = risk()
                 if res:
                     log.info("risk: %s", res)
+                    if res.get("status") == "CLOSED":
+                        desk.notify(f"CLOSED {res['ticker']}: {res['reason']}, "
+                                    f"paper PnL ${res['pnl_usd']}")
             except Exception as e:
                 log.exception("risk tick blew up: %s", e)
         time.sleep(max(1, min(RISK_POLL_SECONDS, next_cycle - time.time())))

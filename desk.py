@@ -41,7 +41,13 @@ class Desk:
         else:
             line = f"NO TRADE {json.dumps(stats)}"
         log.info(line)
-        self._telegram(line)
+        # Telegram: picks always; the every-15-minutes "no trade" line only if asked for
+        if order or os.environ.get("TELEGRAM_EVERY_CYCLE") == "1":
+            self._telegram(line)
+
+    def notify(self, text):
+        """Anything the desk wants you to see on your phone (closes, errors)."""
+        self._telegram(text)
 
     @staticmethod
     def _telegram(text):
