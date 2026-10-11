@@ -3,3 +3,4 @@ __pycache__/
 shadow.jsonl
 .env
 cycles.jsonl
+desk.env

@@ -5,6 +5,17 @@ Set-Location $PSScriptRoot
 $py = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
 if (-not (Test-Path $py)) { Write-Host "No .venv folder here. Run the setup steps first."; Read-Host "Enter to close"; exit 1 }
 
+# Optional: desk.env next to this file, one KEY=value per line (see desk.env.example).
+# Loaded for these windows only. Never commit it: it holds your keys.
+$envFile = Join-Path $PSScriptRoot "desk.env"
+if (Test-Path $envFile) {
+    foreach ($line in Get-Content $envFile) {
+        if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$' -and -not $line.TrimStart().StartsWith("#")) {
+            [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2].Trim('"'), "Process")
+        }
+    }
+}
+
 # Anything not already set in Windows is asked once and kept only for these windows.
 function Need($name, $prompt) {
     if (-not [Environment]::GetEnvironmentVariable($name)) {
