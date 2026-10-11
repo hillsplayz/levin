@@ -24,7 +24,10 @@ async def judge(ask: Ask, authorization: str = Header("")):
     qs = SETS[ask.question_set]
     qs = qs(ask.state) if callable(qs) else qs        # pick builds options at call time
 
-    r = await client.system_one(state=ask.state, questions=qs)
+    try:
+        r = await client.system_one(state=ask.state, questions=qs)
+    except Exception as e:                      # say what TypeSafe said, not a bare 500
+        raise HTTPException(502, f"TypeSafe call failed: {type(e).__name__}: {e}")
 
     # raw answers out. never flattened, never thresholded here.
     return {"model": r.model,

@@ -17,6 +17,7 @@ cloudflared tunnel --url http://localhost:8080
 export JUDGE_URL="https://<tunnel>/judge" DESK_SECRET=...
 # Chrome logged into fomo.family with --remote-debugging-port=9222 (or set FOMO_BEARER)
 export DESK_BANK_USD=1000
+start_desk.bat         # one click: judge + desk (paper) + dashboard + FOMO Chrome
 python run.py            # shadow: logs would-be orders to shadow.jsonl, buys nothing
 python run.py --paper    # paper trading: simulated fills, RISK exit, paper PnL
 python -m uvicorn dashboard:app --port 8090   # http://127.0.0.1:8090

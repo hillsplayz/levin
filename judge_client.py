@@ -10,5 +10,6 @@ def judge(question_set: str, state: dict) -> dict:
                       json={"question_set": question_set, "state": state})
     if r.status_code == 422:
         raise RuntimeError(f"malformed question set {question_set}: {r.text}")
-    r.raise_for_status()
+    if not r.ok:
+        raise RuntimeError(f"judge {r.status_code}: {r.text[:300]}")
     return r.json()
