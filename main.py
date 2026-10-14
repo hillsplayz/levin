@@ -16,6 +16,9 @@ log = logging.getLogger("desk")
 
 
 def run_once(fomo, judge, desk, bank, shadow=True):
+    if (why := book.get_flag("halt")):           # daily loss limit hit: only a human resumes
+        log.info("HALTED (%s), no scan this cycle", why)
+        return None, {"halted": why}
     if (h := book.held()):                       # RISK owns the desk right now
         log.info("holding %s for %.0f min, no scan this cycle",
                  h["ticker"], h["minutes"])
@@ -110,7 +113,7 @@ def run_once(fomo, judge, desk, bank, shadow=True):
         order = {"model": "single-survivor", "size_factor": 1.0, "confidence": None,
                  "token": {"ticker": d["ticker"], "address": d["addr"],
                            "network_id": d["net"], "chain": d["chain"],
-                           "price_usd": d.get("price_usd")},
+                           "price_usd": d.get("price_usd"), "lead_id": d.get("lead_id")},
                  "why": ans}
     else:
         order = pick(judge, survivors)           # pass five
@@ -133,7 +136,7 @@ def main(fomo, judge, desk, shadow=True, risk=None):
          send_to_seats(order)   -> hand it to SIZE, then FILLS, then RISK, in that order
        risk is optional: a function called every RISK_POLL_SECONDS while a position is open.
     """
-    next_cycle = 0.0
+    next_cycle, empty = 0.0, 0
     while True:
         now = time.time()
         if now >= next_cycle:
@@ -144,6 +147,15 @@ def main(fomo, judge, desk, shadow=True, risk=None):
                 desk.report(order, stats)        # every cycle, trade or not
                 if order:
                     desk.send_to_seats(order)
+                # silent-failure watchdog: a scan that finds nothing, repeatedly, is a fault
+                if "seen" in stats:
+                    empty = empty + 1 if stats["seen"] == 0 else 0
+                    if empty == 3:
+                        desk.notify("WARNING: 3 scans in a row saw 0 tokens. GeckoTerminal "
+                                    "or FOMO may be down, or the FOMO login expired.")
+                    elif empty == 0 and stats["seen"] and getattr(desk, "_was_empty", False):
+                        desk.notify("Scans are seeing tokens again.")
+                    desk._was_empty = empty >= 3
             except Exception as e:
                 log.exception("cycle blew up: %s", e)
                 desk.notify(f"Desk cycle error: {type(e).__name__}: {str(e)[:200]}")
@@ -155,6 +167,14 @@ def main(fomo, judge, desk, shadow=True, risk=None):
                     if res.get("status") == "CLOSED":
                         desk.notify(f"CLOSED {res['ticker']}: {res['reason']}, "
                                     f"paper PnL ${res['pnl_usd']}")
+                        if res.get("halted"):
+                            desk.notify(f"HALTED: {res['halted']}. No new entries until you "
+                                        "send /resume.")
             except Exception as e:
                 log.exception("risk tick blew up: %s", e)
+        try:
+            import report
+            report.tick(desk)                    # morning status, evening and weekly reports
+        except Exception as e:
+            log.exception("report failed: %s", e)
         time.sleep(max(1, min(RISK_POLL_SECONDS, next_cycle - time.time())))

@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS bench(
   tid TEXT PRIMARY KEY, reason TEXT, until REAL);
 CREATE TABLE IF NOT EXISTS watch(
   tid TEXT PRIMARY KEY, ready_at REAL, tries INT);
+CREATE TABLE IF NOT EXISTS flags(
+  name TEXT PRIMARY KEY, value TEXT, at REAL);
 """)
 
 # how long a rejection stands, by what fired it
@@ -87,4 +89,19 @@ def due(limit: int = 100) -> list[str]:
 
 def unwatch(tid: str):
     DB.execute("DELETE FROM watch WHERE tid=?", (tid,))
+    DB.commit()
+
+
+def get_flag(name: str):
+    r = DB.execute("SELECT value FROM flags WHERE name=?", (name,)).fetchone()
+    return r[0] if r else None
+
+
+def set_flag(name: str, value: str):
+    DB.execute("INSERT OR REPLACE INTO flags VALUES (?,?,?)", (name, value, time.time()))
+    DB.commit()
+
+
+def clear_flag(name: str):
+    DB.execute("DELETE FROM flags WHERE name=?", (name,))
     DB.commit()

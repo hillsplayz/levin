@@ -28,7 +28,11 @@ def pick(judge, survivors) -> dict | None:
     if not survivors:
         return None
 
-    state = {"candidates": [{"ticker": d["ticker"], "summary": summary(d, a)}
+    # Options are labelled ticker + address stub, so two tokens that share a ticker can
+    # never be mixed up: the label that comes back maps to exactly one address.
+    label = lambda d: f"{d['ticker']} [{d['addr'][:4]}..{d['addr'][-4:]}]"
+    by_label = {label(d): (d, a) for d, a in survivors}
+    state = {"candidates": [{"ticker": label(d), "summary": summary(d, a)}
                             for d, a in survivors]}
     r = judge("pick", state)
     best, worth = r["answers"]["best"], r["answers"]["worth_trading_at_all"]
@@ -38,7 +42,7 @@ def pick(judge, survivors) -> dict | None:
     if best["confidence"] < PICK_MIN_CONF:
         return None                      # flat over ten options means no favourite.
 
-    d, ans = next((x for x in survivors if x[0]["ticker"] == best["choice"]), (None, None))
+    d, ans = by_label.get(best["choice"], (None, None))
     if d is None:
         return None                      # the schema guarantees the option is in the
                                          # list, so log this one and stand down.
@@ -52,7 +56,7 @@ def pick(judge, survivors) -> dict | None:
     return {"model": r["model"],
             "token": {"ticker": d["ticker"], "address": d["addr"],
                       "network_id": d["net"], "chain": d["chain"],
-                      "price_usd": d.get("price_usd")},
+                      "price_usd": d.get("price_usd"), "lead_id": d.get("lead_id")},
             "size_factor": round(size_factor, 2),
             "confidence": best["confidence"],
             "runner_up": sorted(best["probabilities"].items(),

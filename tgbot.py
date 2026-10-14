@@ -3,10 +3,12 @@
   /status   is a position open, when the last cycle ran, how many tokens are benched
   /pnl      paper PnL: realised, open, win rate, fees
   /trades   the last 5 paper trades
+  /report   today's report (same as the evening one)
+  /resume   after a daily-loss halt, allow new paper entries again
   /help
 
-Read-only. It cannot trade, stop the desk or change anything. It only answers the chat
-whose id is in TELEGRAM_CHAT; everyone else is ignored.
+Everything is read-only EXCEPT /resume, which only clears the halt flag. It cannot trade
+or stop the desk. It only answers the chat whose id is in TELEGRAM_CHAT.
 """
 import json, logging, os, sqlite3, time, requests
 
@@ -56,6 +58,9 @@ def status() -> str:
     b = _q("SELECT COUNT(*) FROM bench WHERE until > ?", (time.time(),))
     w = _q("SELECT COUNT(*) FROM watch")
     out.append(f"Benched: {b[0][0] if b else 0}, watching young tokens: {w[0][0] if w else 0}")
+    h = _q("SELECT value FROM flags WHERE name='halt'")
+    if h:
+        out.append(f"HALTED: {h[0][0]}. Send /resume to restart entries.")
     return "\n".join(out)
 
 
@@ -85,8 +90,28 @@ def trades() -> str:
         for t, tk, p, pc, r, ca in rows)
 
 
-COMMANDS = {"/status": status, "/pnl": pnl, "/trades": trades}
-HELP = "Commands: /status /pnl /trades /help\nRead-only: I cannot trade or stop the desk."
+def resume() -> str:
+    try:
+        c = sqlite3.connect(DB, timeout=10)
+        try:
+            n = c.execute("DELETE FROM flags WHERE name='halt'").rowcount
+            c.commit()
+        finally:
+            c.close()
+    except Exception as e:
+        return f"Could not resume: {e}"
+    return "Halt cleared. New paper entries are allowed again." if n else "Desk was not halted."
+
+
+def daily_report() -> str:
+    import report
+    return report.summary(1)
+
+
+COMMANDS = {"/status": status, "/pnl": pnl, "/trades": trades, "/report": daily_report,
+            "/resume": resume}
+HELP = ("Commands: /status /pnl /trades /report /resume /help\n"
+        "I cannot trade or stop the desk. /resume only lifts a daily-loss halt.")
 
 
 def handle(text: str) -> str:

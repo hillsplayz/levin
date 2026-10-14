@@ -24,7 +24,7 @@ def test_commands():
     p = tgbot.handle("/pnl@mybot")
     assert "Realised: +$42" in p and "1 closed" in p and "win rate 100%" in p, p
     assert "AAA" in tgbot.handle("/trades") and "VOLUME_DRAIN" in tgbot.handle("/trades")
-    assert "Read-only" in tgbot.handle("hello") and "Read-only" in tgbot.handle("")
+    assert "/resume" in tgbot.handle("hello") and "/resume" in tgbot.handle("")
 
 
 def test_ignores_other_chats():

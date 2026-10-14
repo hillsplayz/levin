@@ -47,6 +47,17 @@ FEE_FLOOR_USD     = 0.95
 MAX_EFFECTIVE_FEE = 0.02    # FILLS step 2: fee/ticket above this -> FEE_FLOOR, no fill
 MAX_SLIPPAGE_BPS  = 300     # FILLS step 4: above this the fill is flagged loudly
 RISK_MIN_RATIO    = 0.20    # RISK: volume.h6 / (volume.h24 / 4) below this -> CLOSE
-RISK_POLL_SECONDS = 300     # RISK polls every 5 minutes
 RISK_RETRIES      = 2       # no data: retry twice, then CLOSE anyway
 MAX_WATCH_TRIES   = 4       # too-young tokens are re-checked this many times
+
+# ---- exits and limits adopted from the second blueprint (EXIT / RUG / Head of Desk) ----
+# The guide's RISK has ONE rule (volume drain). A rug pulls liquidity while people dump,
+# so volume spikes and that rule stays quiet. These add the missing price and liquidity
+# exits. All of them are starting guesses to be tuned from paper data, not proven numbers.
+STOP_LOSS_PCT      = 0.30   # close if price is 30% under the entry fill
+LIQ_PULL_PCT       = 0.50   # close if pool liquidity is under 50% of its level at entry
+TRAIL_ARM_PCT      = 0.40   # once price is +40% over entry, start trailing the peak
+TRAIL_GAP_PCT      = 0.25   # then close if price falls 25% below its peak
+MAX_HOLD_HOURS     = 12     # nothing is held longer than this
+MAX_DAILY_LOSS_PCT = 0.05   # realised loss today >= 5% of the start bank halts new entries
+RISK_POLL_SECONDS  = 60     # was 300; one free DexScreener call a minute while a position is open

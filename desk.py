@@ -35,9 +35,12 @@ class Desk:
         with open("cycles.jsonl", "a") as f:
             f.write(json.dumps({"ts": time.time(), "order": order, "stats": stats}) + "\n")
         if order:
-            line = (f"ORDER {order['token']['ticker']} ({order['token']['chain']}) "
+            tk = order["token"]
+            import report
+            line = (f"PICK #{tk.get('lead_id')} {tk['ticker']} ({tk['chain']}) "
                     f"size x{order['size_factor']} conf {order['confidence']} "
-                    f"model {order['model']}")
+                    f"model {order['model']}\n{tk['address']}\n"
+                    f"{report.links(tk['chain'], tk['address'])}")
         else:
             line = f"NO TRADE {json.dumps(stats)}"
         log.info(line)
@@ -63,7 +66,8 @@ class Desk:
         if self.paper:
             res = self.paper.open_position(order, self.bank())
             log.info("PAPER %s %s: %s", order["token"]["ticker"], res["status"], res)
-            self._telegram(f"PAPER {order['token']['ticker']}: {json.dumps(res)}")
+            tk = order["token"]
+            self._telegram(f"PAPER #{tk.get('lead_id')} {tk['ticker']}: {json.dumps(res)}")
             return res
         url = os.environ.get("SEATS_WEBHOOK")
         if url:

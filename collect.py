@@ -1,5 +1,6 @@
 import time, requests
-from fomo_api import Fomo                      # Privy bearer out of Chrome over CDP
+from fomo_api import Fomo
+from tokenlog import lead_id                      # Privy bearer out of Chrome over CDP
 
 GT  = "https://api.geckoterminal.com/api/v2"
 DEX = "https://api.dexscreener.com/latest/dex/tokens"
@@ -19,27 +20,34 @@ def age_minutes(created) -> float:
     return max(0.0, (time.time() - c) / 60)
 
 
-def universe(nets=("solana", "bsc", "robinhood"), pages=2) -> list[str]:
-    """Where the whole thing starts. Fresh pools per chain -> ['<addr>:<netId>', ...].
-       Costs one GeckoTerminal slot per chain per page, so keep pages small."""
+# Newest pools are mostly seconds-old junk that can never pass the guide's checks. Trending
+# pools (by 1h activity) hold the tokens that already have liquidity and volume. Same number
+# of GeckoTerminal calls as before: one new_pools page plus one trending page per chain.
+UNIVERSE_SOURCES = (("new_pools", {}), ("trending_pools", {"duration": "1h"}))
+
+
+def universe(nets=("solana", "bsc", "robinhood"), pages=1) -> list[str]:
+    """Where the whole thing starts. Pools per chain -> ['<addr>:<netId>', ...].
+       Costs one GeckoTerminal slot per source per chain per page, so keep pages small."""
     ids, seen = [], set()
     for net in nets:
-        for page in range(1, pages + 1):
-            try:
-                r = requests.get(f"{GT}/networks/{net}/new_pools",
-                                 params={"page": page}, timeout=20).json()
-            except Exception:
-                break
-            for pool in r.get("data", []):
-                base = ((pool.get("relationships") or {}).get("base_token") or {})
-                gid  = (base.get("data") or {}).get("id")      # 'solana_<addr>'
-                if not gid:
-                    continue
-                addr = gid.split("_", 1)[1]
-                tid  = f"{addr}:{FOMO_NET[net]}"
-                if tid not in seen:
-                    seen.add(tid)
-                    ids.append(tid)
+        for path, extra in UNIVERSE_SOURCES:
+            for page in range(1, pages + 1):
+                try:
+                    r = requests.get(f"{GT}/networks/{net}/{path}",
+                                     params={"page": page, **extra}, timeout=20).json()
+                except Exception:
+                    break
+                for pool in r.get("data", []):
+                    base = ((pool.get("relationships") or {}).get("base_token") or {})
+                    gid  = (base.get("data") or {}).get("id")      # 'solana_<addr>'
+                    if not gid:
+                        continue
+                    addr = gid.split("_", 1)[1]
+                    tid  = f"{addr}:{FOMO_NET[net]}"
+                    if tid not in seen:
+                        seen.add(tid)
+                        ids.append(tid)
     return ids
 
 
@@ -92,7 +100,7 @@ def dossier(t: dict) -> dict:
     a = requests.get(f"{GT}/networks/{net}/tokens/{t['addr']}/info",
                      timeout=20).json()["data"]["attributes"]
 
-    d = {**t, "chain": net,
+    d = {**t, "chain": net, "lead_id": lead_id(t["tid"]),
          # GT first, FOMO as the fallback. On Robinhood GT is null and FOMO is all you get.
          "holder_count": (a.get("holders") or {}).get("count") or t["holder_count"],
          "top_10_percent": ((a.get("holders") or {}).get("distribution_percentage")
