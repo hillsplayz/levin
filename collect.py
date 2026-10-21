@@ -1,7 +1,8 @@
-import time, requests
+import logging, time, requests
 from fomo_api import Fomo
 from tokenlog import lead_id                      # Privy bearer out of Chrome over CDP
 
+log = logging.getLogger("desk")
 GT  = "https://api.geckoterminal.com/api/v2"
 DEX = "https://api.dexscreener.com/latest/dex/tokens"
 
@@ -59,6 +60,8 @@ def normalise(tid: str, m: dict) -> dict:
             "mcap_usd": m["mcap"], "liquidity_usd": m["liq"],
             "volume_h24": m["vol24"], "price_usd": m["price"],
             "holder_count": m["holders"] or None,
+            "mintable": m.get("mintable"), "freezable": m.get("freezable"),
+            "is_scam": m.get("is_scam"),
             "change": {"5m": m["change"].get(300), "1h": m["change"].get(3600),
                        "4h": m["change"].get(14400), "24h": m["change"].get(86400)},
             "age_minutes": age_minutes(m["created"])}
@@ -94,13 +97,37 @@ def trade_counts(t: dict) -> dict:
             "trades_h24": x["h24"]["buys"] + x["h24"]["sells"]}
 
 
+def _gt_info(net: str, addr: str) -> dict:
+    """GeckoTerminal's token info, or {} if it does not have the token (yet). A brand-new
+    token often is not indexed. That must not crash the dossier: missing is missing."""
+    try:
+        r = requests.get(f"{GT}/networks/{net}/tokens/{addr}/info", timeout=20)
+        return (r.json().get("data") or {}).get("attributes") or {} if r.status_code == 200 else {}
+    except Exception as e:
+        log.warning("GT info failed for %s: %s", addr, e)
+        return {}
+
+
+def _authority(a: dict, key: str, fomo_flag):
+    """(value, known). GeckoTerminal first; if it does not carry the field, FOMO's own
+    mintable/freezable flag; otherwise unknown. Unknown is not 'renounced'."""
+    if key in a:
+        return (a[key] or None), True
+    if fomo_flag is True:
+        return "set (per FOMO)", True
+    if fomo_flag is False:
+        return None, True
+    return None, False
+
+
 def dossier(t: dict) -> dict:
     """One GT call per token. Fills what the chain actually has, null where it does not."""
     net = GT_NET[t["net"]]
-    a = requests.get(f"{GT}/networks/{net}/tokens/{t['addr']}/info",
-                     timeout=20).json()["data"]["attributes"]
+    a = _gt_info(net, t["addr"])
 
-    d = {**t, "chain": net, "lead_id": lead_id(t["tid"]),
+    mint, mint_known = _authority(a, "mint_authority", t.get("mintable"))
+    frz, frz_known = _authority(a, "freeze_authority", t.get("freezable"))
+    d = {**t, "chain": net, "lead_id": lead_id(t["tid"]), "gt_indexed": bool(a),
          # GT first, FOMO as the fallback. On Robinhood GT is null and FOMO is all you get.
          "holder_count": (a.get("holders") or {}).get("count") or t["holder_count"],
          "top_10_percent": ((a.get("holders") or {}).get("distribution_percentage")
@@ -108,14 +135,18 @@ def dossier(t: dict) -> dict:
          "developer_holding_percentage": a.get("developer_holding_percentage"),
          "gt_score_details": a.get("gt_score_details"),
          "is_honeypot": a.get("is_honeypot"),
-         "mint_authority": a.get("mint_authority"),
-         "freeze_authority": a.get("freeze_authority"),
+         "mint_authority": mint, "freeze_authority": frz,
+         "authority_known": mint_known and frz_known,
          "description": a.get("description"),
          "x_handle": clean_handle(a.get("twitter_handle"))}
 
-    # Solana only: exact top wallet share, free, off the public RPC
+    # Solana only: share held by the biggest real wallet, free, off the public RPC
     if t["net"] == 1399811149:
-        d["top_wallet_percent"] = sol_top_wallet(t["addr"])
+        try:
+            d["top_wallet_percent"] = sol_top_wallet(t["addr"])
+        except Exception as e:
+            log.warning("Solana RPC failed for %s: %s", t["addr"], e)
+            d["top_wallet_percent"] = None          # missing, and the question sees it
 
     return d
 
@@ -129,14 +160,54 @@ def clean_handle(h):
     return h if h and h.replace("_", "").isalnum() and len(h) <= 15 else None
 
 
+SOL_RPC = "https://api.mainnet-beta.solana.com"
+SYSTEM_PROGRAM = "11111111111111111111111111111111"
+
+
+def _rpc(method: str, params: list):
+    r = requests.post(SOL_RPC, json={"jsonrpc": "2.0", "id": 1, "method": method,
+                                     "params": params}, timeout=20).json()
+    if "error" in r:
+        raise RuntimeError(f"{method}: {r['error'].get('message')}")
+    return r["result"]
+
+
+def sol_holders(mint: str, n: int = 8) -> list[dict]:
+    """The n largest token accounts, each with its share of supply and whether its OWNER is
+    a normal wallet. The biggest account is usually the pool's own vault or the pump.fun
+    bonding curve, which hold a large part of the supply and are not people who can dump.
+    A wallet is an account owned by the System Program; pool vaults are owned by PDAs."""
+    supply = float(_rpc("getTokenSupply", [mint])["value"]["amount"])
+    top = _rpc("getTokenLargestAccounts", [mint])["value"][:n]
+    if not supply or not top:
+        return []
+    accts = _rpc("getMultipleAccounts", [[x["address"] for x in top],
+                                         {"encoding": "jsonParsed"}])["value"]
+    owners = [(((a or {}).get("data") or {}).get("parsed") or {}).get("info", {}).get("owner")
+              for a in accts]
+    real = [o for o in dict.fromkeys(owners) if o]
+    info = {}
+    if real:
+        vals = _rpc("getMultipleAccounts", [real, {"encoding": "base64",
+                                                   "dataSlice": {"offset": 0, "length": 0}}])["value"]
+        info = dict(zip(real, vals))
+    out = []
+    for x, o in zip(top, owners):
+        acc = info.get(o)
+        out.append({"account": x["address"], "owner": o,
+                    "pct": float(x["amount"]) / supply,
+                    "is_wallet": bool(acc and acc.get("owner") == SYSTEM_PROGRAM)})
+    return out
+
+
 def sol_top_wallet(mint: str):
-    rpc = "https://api.mainnet-beta.solana.com"
-    q = lambda m, p: requests.post(rpc, json={"jsonrpc": "2.0", "id": 1,
-                                              "method": m, "params": p},
-                                   timeout=20).json()["result"]
-    supply = float(q("getTokenSupply", [mint])["value"]["amount"])
-    top = q("getTokenLargestAccounts", [mint])["value"]
-    return float(top[0]["amount"]) / supply if supply and top else None
+    """Share of supply held by the biggest REAL wallet (pool vaults and bonding curves are
+    skipped). If none of the top accounts is a wallet, the 8th account's share is the most
+    any single wallet could hold."""
+    hs = sol_holders(mint)
+    if not hs:
+        return None
+    return next((h["pct"] for h in hs if h["is_wallet"]), hs[-1]["pct"])
 
 
 def social_state(d: dict) -> dict:

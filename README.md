@@ -39,6 +39,7 @@ python -m uvicorn dashboard:app --port 8090   # http://127.0.0.1:8090
 | `tokenlog.py`, `whatif.py` | log every judged token; `python whatif.py` shows what looser filters would let through |
 | `report.py` | morning status, evening report, Sunday weekly review to Telegram |
 | `selftest.py` | cross-checks the 10 busiest Solana tokens across GeckoTerminal, DexScreener and FOMO |
+| `holders_check.py` | shows a Solana token's biggest holders and which are pool vaults |
 | `desk.py` | Grok Bot side: bank, X read, shadow log, Telegram, seat handoff (stubs to wire up) |
 | `prompts/` | handoff, SOCIAL, SIZE/FILLS/RISK seat prompts |
 

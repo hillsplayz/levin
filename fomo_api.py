@@ -59,7 +59,10 @@ def _num(v):
 def _row(r: dict) -> dict:
     tok, n = r.get("token") or {}, _num
     holders = n(r.get("holders"))
+    flag = lambda v: None if v is None else bool(v)
     return {"symbol": tok.get("symbol") or "?",
+            "mintable": flag(tok.get("mintable")), "freezable": flag(tok.get("freezable")),
+            "is_scam": flag(tok.get("isScam")),
             "mcap": n(r.get("marketCap")) or 0, "liq": n(r.get("liquidity")) or 0,
             "vol24": n(r.get("volume24")) or 0, "price": n(r.get("priceUSD")) or 0,
             "holders": int(holders) if holders else None,

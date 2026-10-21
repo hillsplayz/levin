@@ -2,7 +2,8 @@ import time, logging
 from fomo_api import Fomo
 from collect import universe, shortlist, trade_counts, dossier, social_state
 from filter import free_kill, trade_kill, chain_kill, soft_kill
-from thresholds import HARD, RISK_POLL_SECONDS
+from thresholds import (HARD, RISK_POLL_SECONDS, NEAR_MISS_FRACTION, NEAR_MISS_MAX_AGE_H,
+                        NEAR_MISS_RECHECK_MIN)
 from pick import pick
 import book, tokenlog
 
@@ -13,6 +14,16 @@ GT_UNIVERSE   = 6           # 3 chains x 2 pages, spent before the funnel starts
 GT_DOSSIER    = 3           # what is left for dossiers in the same minute
 DEX_BUDGET    = 25          # DexScreener calls per cycle, pass two only
 log = logging.getLogger("desk")
+
+
+def near_miss(t, kill) -> bool:
+    """Missed liquidity, volume or mcap by a modest margin, and still young."""
+    if t["age_minutes"] > NEAR_MISS_MAX_AGE_H * 60:
+        return False
+    have, need = {"liquidity": (t["liquidity_usd"], HARD["min_liquidity_usd"]),
+                  "volume": (t["volume_h24"], HARD["min_volume_h24"]),
+                  "mcap": (t["mcap_usd"], HARD["min_mcap_usd"])}.get(kill, (0, 1))
+    return t["mcap_usd"] <= HARD["max_mcap_usd"] and NEAR_MISS_FRACTION * need <= have < need
 
 
 def run_once(fomo, judge, desk, bank, shadow=True):
@@ -47,6 +58,8 @@ def run_once(fomo, judge, desk, bank, shadow=True):
             if k == "age" and t["age_minutes"] < HARD["min_age_minutes"]:
                 k = "age_young"                  # not bad, just early: look again later
                 book.watch(t["tid"], HARD["min_age_minutes"] - t["age_minutes"] + 1)
+            elif near_miss(t, k):
+                book.watch(t["tid"], NEAR_MISS_RECHECK_MIN, reason=k)   # may be climbing
             else:
                 book.unwatch(t["tid"])
                 book.sit(t["tid"], k)
@@ -73,6 +86,8 @@ def run_once(fomo, judge, desk, bank, shadow=True):
             log.warning("dossier failed %s: %s", t["ticker"], e)
             gt_slots -= 1                        # a failed call still cost you the slot
             book.sit(t["tid"], "dossier_failed")
+            stats["chain"]["dossier_failed"] = stats["chain"].get("dossier_failed", 0) + 1
+            tokenlog.log(t, "dossier_failed")
             continue                             # missing is missing, not a pass
 
         if (k := chain_kill(d)):

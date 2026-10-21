@@ -13,13 +13,22 @@ HARD = {                        # stage 2, arithmetic, runs before anything cost
 
 HARD_BLUEPRINT = dict(HARD)     # the guide's exact numbers, kept for comparison
 
-# A looser set for paper testing only. Switch on with DESK_PROFILE=explore (desk.env).
-# Everything below the free cut is unchanged. Remove the variable to go back.
-EXPLORE = {"min_age_minutes": 10, "min_liquidity_usd": 6_000, "min_volume_h24": 15_000,
-           "min_mcap_usd": 30_000, "min_trades_h24": 60, "min_holders": 40}
+# Free-cut thresholds. The guide's exact numbers are HARD_BLUEPRINT above. The default is the
+# looser EXPLORE set below because the guide's set passed 0 of ~2,000 sightings in 38 cycles.
+# Everything after the free cut is unchanged except max_top_wallet / max_top_10 here.
+# Switch back with DESK_PROFILE=blueprint (desk.env). Paper trading only, please.
+EXPLORE = {"min_age_minutes": 10, "min_liquidity_usd": 5_000, "min_volume_h24": 10_000,
+           "min_mcap_usd": 25_000, "min_trades_h24": 50, "min_holders": 30,
+           "max_top_wallet": 0.08, "max_top_10": 0.70}
 import os as _os
-if _os.environ.get("DESK_PROFILE") == "explore":
+if _os.environ.get("DESK_PROFILE", "explore") != "blueprint":
     HARD.update(EXPLORE)
+
+# A token that misses liquidity / volume / mcap by a modest margin while still young may be
+# on its way up. Re-check it instead of benching it. Re-checks ride in the FOMO batch.
+NEAR_MISS_FRACTION    = 0.4    # within reach: at least 40% of the threshold
+NEAR_MISS_MAX_AGE_H   = 6      # only while the token is still young
+NEAR_MISS_RECHECK_MIN = 20     # look again in 20 minutes (4 tries, then benched)
 
 SOFT = {                        # applied to Jev's answers, per token
     "concentration_is_exit_risk": ("max", 0.55),

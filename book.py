@@ -28,6 +28,7 @@ BENCH_MINUTES = {
     "shape": 25, "shape_weak": 25, "momentum_already_spent": 25,
     "liquidity_fits_ticket": 25, "liquidity": 25, "volume": 25,
     "trades": 25, "mcap": 25, "age": 20,
+    "scam_flag": 100_000, "authority_unknown": 10, "dossier_failed": 10,
 }
 DEFAULT_BENCH = 45
 
@@ -62,7 +63,7 @@ def sit(tid: str, reason: str):
     DB.commit()
 
 
-def watch(tid: str, minutes: float):
+def watch(tid: str, minutes: float, reason: str = "age"):
     """A token rejected for being too YOUNG is not a bad token, it is an early one.
     Re-check it when it should be old enough. Re-sightings while it is still waiting
     do not count as tries; after MAX_WATCH_TRIES real re-checks it goes on the bench."""
@@ -73,7 +74,7 @@ def watch(tid: str, minutes: float):
     if tries > MAX_WATCH_TRIES:
         DB.execute("DELETE FROM watch WHERE tid=?", (tid,))
         DB.commit()
-        sit(tid, "age")
+        sit(tid, reason)
         return
     DB.execute("INSERT OR REPLACE INTO watch VALUES (?,?,?)",
                (tid, time.time() + max(minutes, 1) * 60, tries))

@@ -31,6 +31,10 @@ def chain_kill(d) -> str | None:
         return "top_10"
     if d.get("holder_count") is not None and d["holder_count"] < HARD["min_holders"]:
         return "holders"
+    if d.get("is_scam") is True:
+        return "scam_flag"               # FOMO's own flag
+    if d["chain"] == "solana" and not d.get("authority_known", True):
+        return "authority_unknown"       # missing is not 'renounced': try again later
     if d["chain"] == "solana" and (d["mint_authority"] or d["freeze_authority"]):
         return "authority_open"          # a fact, no model needed
     if d["chain"] == "bsc" and d.get("is_honeypot") is True:
