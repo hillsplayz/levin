@@ -1,5 +1,0 @@
-typesafe-sdk
-fastapi
-uvicorn
-requests
-websocket-client
