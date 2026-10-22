@@ -15,8 +15,8 @@ export function Hero() {
             <h1 className="max-w-4xl text-balance font-sans text-[clamp(4rem,11vw,9.5rem)] font-black leading-[0.78] tracking-[-0.09em]">
               YOU COULDA<br /><span className="text-primary">BEEN RICH.</span>
             </h1>
-            <p className="max-w-xl text-pretty text-base leading-relaxed text-muted-foreground md:text-xl">
-              You found it early. You hesitated. Someone else bought it.
+            <p className="max-w-xl text-pretty text-base font-bold leading-relaxed text-foreground md:text-xl">
+              Every day, one coin. One decision. One chance to prove you&apos;re not a coward.
             </p>
           </div>
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
@@ -28,7 +28,7 @@ export function Hero() {
             </a>
           </div>
           <p className="font-mono text-[11px] uppercase leading-relaxed text-muted-foreground">
-            No wallet. No purchase. Just a free simulation of emotional damage.
+            No wallet. No money. Just regret. Fictional simulation only.
           </p>
         </div>
         <div className="relative mt-10 min-h-[390px] lg:mt-0 lg:min-h-[650px]">
