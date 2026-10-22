@@ -21,6 +21,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
+    site: '@COULDAPUMP',
+    creator: '@COULDAPUMP',
     title: 'YOU COULDA BEEN RICH.',
     description: 'The coin you didn’t buy.',
     images: ['/coulda-mascot.png'],

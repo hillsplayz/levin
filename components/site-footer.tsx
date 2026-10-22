@@ -12,7 +12,9 @@ export function SiteFooter() {
         </div>
         <div className="flex flex-col justify-between gap-3 border-t border-border pt-5 font-mono text-[10px] text-muted-foreground md:flex-row">
           <p>© 2026 COULDA · FICTIONAL SIMULATIONS FOR ENTERTAINMENT</p>
-          <p>NO VERIFIED SOCIALS OR CONTACT PUBLISHED YET</p>
+          <a href="https://x.com/COULDAPUMP" target="_blank" rel="noopener noreferrer" className="font-bold text-foreground transition-colors hover:text-primary" aria-label="Follow COULDA on X at @COULDAPUMP">
+            X / TWITTER: @COULDAPUMP
+          </a>
         </div>
       </div>
     </footer>

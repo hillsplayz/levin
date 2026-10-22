@@ -110,7 +110,7 @@ export function DailyChallenge({ today, archive, initialChoice }: Props) {
     if (!lockedChoice) return
     const action = lockedChoice === 'buy' ? `BOUGHT ${selected.ticker}` : `SKIPPED ${selected.ticker}`
     const outcome = selected.outcomeMultiplier >= 1 ? `${selected.outcomeMultiplier}x` : `${Math.round((1 - selected.outcomeMultiplier) * 100)}% down`
-    const text = `${action} in The COULDA Daily Challenge. Fictional outcome: ${outcome}. ${resultCopy(selected, lockedChoice)} #COULDA`
+    const text = `${action} in The COULDA Daily Challenge by @COULDAPUMP. Fictional outcome: ${outcome}. ${resultCopy(selected, lockedChoice)} #COULDA`
     const shareUrl = `https://x.com/intent/post?text=${encodeURIComponent(text)}&url=${encodeURIComponent(window.location.href)}`
     window.open(shareUrl, '_blank', 'noopener,noreferrer')
   }
