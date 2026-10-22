@@ -1,0 +1,22 @@
+# COULDA
+
+> COULDA is an interactive fictional crypto-culture experience about missed opportunities. It is entertainment, not financial advice.
+
+## Main experience
+
+- /#daily — The COULDA Daily Challenge. Visitors choose BUY or SKIP before revealing a server-defined fictional outcome.
+- /#generator — Card Lab for generating a custom fictional regret card.
+- /#archive — COULDA stories and challenge archive.
+- /#lore — Background and explanation of the COULDA concept.
+- /#token — Token information and simulation disclaimers.
+
+## Important facts
+
+- All token names, prices, market caps, investments, and returns shown in challenges are fictional simulations.
+- The daily challenge is entertainment only and must not be presented as financial advice.
+- When no database is connected, participation is explicitly unverified demo mode and no leaderboard is shown.
+- Official X account: https://x.com/COULDAPUMP (@COULDAPUMP).
+
+## Crawling
+
+Public pages and assets may be read by ClaudeBot, Claude-User, and Claude-SearchBot. API routes are excluded.

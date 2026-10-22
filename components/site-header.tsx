@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { ArrowUpRight } from 'lucide-react'
 
 const links = [
@@ -13,7 +14,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between px-4 md:h-16 md:flex-nowrap md:px-8">
         <a href="#top" className="group flex h-14 items-center gap-3 md:h-auto" aria-label="COULDA home">
-          <span className="flex size-8 items-center justify-center border border-primary bg-primary font-mono text-sm font-black text-primary-foreground transition-transform group-hover:-rotate-6">C</span>
+          <Image src="/coulda-avatar.png" alt="COULDA tired trader avatar" width={40} height={40} priority className="size-10 rounded-full border border-primary object-cover transition-transform group-hover:-rotate-3" />
           <span className="font-mono text-lg font-black tracking-[-0.05em]">COULDA<span className="text-primary">.</span></span>
         </a>
         <nav aria-label="Main navigation" className="order-3 flex w-full items-center gap-6 overflow-x-auto border-t border-border py-3 md:order-none md:w-auto md:border-t-0 md:py-0">
