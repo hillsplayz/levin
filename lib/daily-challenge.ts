@@ -136,3 +136,25 @@ export function getChallengeCookieName(dateKey: string) {
 export function isDailyChoice(value: unknown): value is DailyChoice {
   return value === 'buy' || value === 'skip'
 }
+
+export function getWinningChoice(challenge: DailyChallenge): DailyChoice {
+  return challenge.outcomeMultiplier >= 1 ? 'buy' : 'skip'
+}
+
+export function calculateCouldaScore(challenge: DailyChallenge, choice: DailyChoice) {
+  const correct = choice === getWinningChoice(challenge)
+  const magnitude = challenge.outcomeMultiplier >= 1
+    ? Math.min(30, Math.round(Math.log2(challenge.outcomeMultiplier) * 6))
+    : Math.min(30, Math.round((1 - challenge.outcomeMultiplier) * 30))
+
+  return correct ? 70 + magnitude : 30 - magnitude
+}
+
+export function getCouldaTitle(score: number) {
+  if (score >= 95) return 'CEO OF COULDA'
+  if (score >= 80) return 'REGRET MAXXER'
+  if (score >= 60) return 'CERTIFIED COOKED'
+  if (score >= 40) return 'SERIAL HESITATOR'
+  if (score >= 20) return 'PAPER HANDS'
+  return 'PROFESSIONAL NPC'
+}
