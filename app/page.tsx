@@ -17,23 +17,23 @@ export default async function Page() {
   const initialChoice = isDailyChoice(savedChoice) ? savedChoice : null
 
   return (
-    <main>
+    <main id="top">
       <SiteHeader />
+      <LoreSection />
       <Hero />
       <DailyChallenge today={today} archive={archive} initialChoice={initialChoice} />
+      <TokenSection />
+      <RegretArchive />
       <div className="border-b border-border px-4 py-10 md:px-8">
         <div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 md:flex-row md:items-end">
           <div>
-            <p className="font-mono text-xs font-black tracking-[0.2em] text-primary">// MORE WAYS TO REGRET PRODUCTIVELY</p>
+            <p className="font-mono text-xs font-black tracking-[0.2em] text-primary">// MAKE THE REGRET YOURS</p>
             <h2 className="mt-3 text-3xl font-black tracking-[-0.04em] md:text-5xl">THE COULDA LAB.</h2>
           </div>
-          <p className="max-w-md text-sm leading-relaxed text-muted-foreground">Make a custom regret card, browse community-style cautionary tales, then learn the painfully repetitive lore.</p>
+          <p className="max-w-md text-sm leading-relaxed text-muted-foreground">Once you know the lore, turn your own missed opportunity into a fictional share card.</p>
         </div>
       </div>
       <RegretGenerator />
-      <RegretArchive />
-      <LoreSection />
-      <TokenSection />
       <SiteFooter />
     </main>
   )

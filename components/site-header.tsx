@@ -2,11 +2,12 @@ import Image from 'next/image'
 import { ArrowUpRight } from 'lucide-react'
 
 const links = [
-  ['DAILY', '#daily'],
-  ['CARD LAB', '#generator'],
-  ['STORIES', '#archive'],
   ['LORE', '#lore'],
+  ['PURPOSE', '#purpose'],
+  ['DAILY', '#daily'],
   ['TOKEN', '#token'],
+  ['STORIES', '#archive'],
+  ['CARD LAB', '#generator'],
 ]
 
 export function SiteHeader() {

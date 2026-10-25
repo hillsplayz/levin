@@ -3,7 +3,7 @@ import { ArrowDownRight, ArrowRight, Radio } from 'lucide-react'
 
 export function Hero() {
   return (
-    <section id="top" className="relative overflow-hidden border-b border-border">
+    <section id="purpose" className="scroll-mt-28 relative overflow-hidden border-b border-border">
       <div className="pointer-events-none absolute inset-0 terminal-grid opacity-40" />
       <div className="mx-auto grid min-h-[calc(100svh-4rem)] max-w-7xl items-center px-4 py-12 md:px-8 lg:grid-cols-[0.92fr_1.08fr] lg:py-16">
         <div className="relative z-10 flex flex-col items-start gap-7">
@@ -12,9 +12,9 @@ export function Hero() {
             LIVE FROM THE BAD TIMELINE
           </div>
           <div className="flex flex-col gap-4">
-            <h1 className="max-w-4xl text-balance font-sans text-[clamp(4rem,11vw,9.5rem)] font-black leading-[0.78] tracking-[-0.09em]">
+            <h2 className="max-w-4xl text-balance font-sans text-[clamp(4rem,11vw,9.5rem)] font-black leading-[0.78] tracking-[-0.09em]">
               YOU COULDA<br /><span className="text-primary">BEEN RICH.</span>
-            </h1>
+            </h2>
             <p className="max-w-xl text-pretty text-base font-bold leading-relaxed text-foreground md:text-xl">
               Every day, one coin. One decision. One chance to prove you&apos;re not a coward.
             </p>

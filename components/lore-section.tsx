@@ -11,12 +11,18 @@ const episodes = [
 
 export function LoreSection() {
   return (
-    <section id="lore" className="border-b border-border px-4 py-20 md:px-8 md:py-28">
+    <section id="lore" className="scroll-mt-28 border-b border-border px-4 py-20 md:px-8 md:py-28">
       <div className="mx-auto flex max-w-7xl flex-col gap-12">
-        <div className="flex max-w-4xl flex-col gap-4">
-          <div className="font-mono text-xs font-bold tracking-[0.2em] text-primary">// THE COULDA LORE · EPISODE 001</div>
-          <h2 className="text-balance text-5xl font-black leading-[0.9] tracking-[-0.06em] md:text-7xl">A HERO WITH<br />NO POSITION.</h2>
-          <p className="max-w-2xl text-pretty leading-relaxed text-muted-foreground">Meet Cal. He can detect a 100x from three browser tabs away—and will conduct just enough research to miss every single one.</p>
+        <div className="grid gap-8 lg:grid-cols-[1fr_0.65fr] lg:items-end">
+          <div className="flex max-w-4xl flex-col gap-4">
+            <div className="font-mono text-xs font-bold tracking-[0.2em] text-primary">// START HERE · THE COULDA LORE</div>
+            <h1 className="text-balance text-5xl font-black leading-[0.9] tracking-[-0.06em] md:text-7xl">A HERO WITH<br />NO POSITION.</h1>
+            <p className="max-w-2xl text-pretty text-lg font-bold leading-relaxed text-foreground">Meet Cal. He spots the opportunity, researches it to death, skips it—and watches it fly without him.</p>
+          </div>
+          <aside className="border border-primary bg-primary/10 p-5">
+            <p className="font-mono text-xs font-black tracking-[0.18em] text-primary">WHY COULDA EXISTS</p>
+            <p className="mt-3 text-pretty text-sm leading-relaxed text-muted-foreground">COULDA turns the universal pain of missed opportunities into a daily fictional game, original stories, and shareable regret. No wallet required. The joke is hesitation—not a promise of profit.</p>
+          </aside>
         </div>
         <figure className="overflow-hidden border border-border bg-card">
           <div className="relative aspect-[3/1] min-h-72 w-full">
